@@ -1,66 +1,68 @@
-        ORG 0x0000        ; Origen del código en la dirección de memoria 0x0000
+        org 0000       ; Origen del código en la dirección de memoria 0x0000
 
-        ; Convertir el valor en B a BCD y almacenarlo en BC
-        LD A, B           ; Cargar el valor de B en A
-        CALL HEX_TO_BCD   ; Convertir A de hexadecimal a BCD
-        LD B, A           ; Almacenar el valor BCD de A en B
+        ; --- Conversión del valor en B (Hexadecimal) a BCD ---
+        ld a, b          ; Cargar el valor de B en A
+        ld h, 0          ; Inicializar H para las decenas en BCD
+        ld l, 0          ; Inicializar L para las unidades en BCD
 
-        ; Convertir el valor en C a BCD y almacenarlo en DE
-        LD A, C           ; Cargar el valor de C en A
-        CALL HEX_TO_BCD   ; Convertir A de hexadecimal a BCD
-        LD D, B           ; Almacenar las decenas en D
-        LD E, C           ; Almacenar las unidades en E
+conv_b_to_bcd:
+        cp 0Ah           ; Comparar A con 10
+        jr c, store_b    ; Si A < 10, saltar a almacenar el valor
+        sub 0Ah          ; Restar 10 de A
+        inc h            ; Incrementar decenas en H
+        jr conv_b_to_bcd ; Repetir el bucle
 
-        ; Suma en BCD
-        LD A, B           ; Cargar el valor BCD en B en A
-        ADD A, D          ; Sumar el valor BCD de D al registro A (centenas)
-        LD H, A           ; Almacenar el resultado de las decenas en H
+store_b:
+        ld b, h          ; Almacenar las decenas en B
+        ld c, a          ; Almacenar las unidades en C
 
-        LD A, C           ; Cargar el valor BCD de las unidades de B
-        ADD A, E          ; Sumar el valor BCD de las unidades de C
-        LD L, A           ; Almacenar el resultado de las unidades en L
+        ; --- Conversión del valor en C (Hexadecimal) a BCD ---
+        ld a, c          ; Cargar el valor de C en A
+        ld h, 0          ; Inicializar H para las decenas en BCD
+        ld l, 0          ; Inicializar L para las unidades en BCD
 
-        ; Corregir el acarreo de la suma si es necesario
-        CALL ADJUST_BCD   ; Ajustar A, H, L en caso de haber acarreo
+conv_c_to_bcd:
+        cp 0Ah           ; Comparar A con 10
+        jr c, store_c    ; Si A < 10, saltar a almacenar el valor
+        sub 0Ah          ; Restar 10 de A
+        inc h            ; Incrementar decenas en H
+        jr conv_c_to_bcd ; Repetir el bucle
 
-        ; Detener la ejecución del programa
-        HALT              ; Detener el procesador
+store_c:
+        ld d, h          ; Almacenar las decenas en D
+        ld e, a          ; Almacenar las unidades en E
 
-; Subrutina para convertir de hexadecimal a BCD
-HEX_TO_BCD:
-        LD D, #00         ; Inicializar D para las decenas
-        LD E, #00         ; Inicializar E para las unidades
+        ; --- Suma de las unidades ---
+        ld a, c          ; Cargar las unidades de C en A
+        add a, e         ; Sumar las unidades de E a A
+        daa              ; Ajustar A al formato BCD
+        ld l, a          ; Guardar el resultado en L
 
-        ; División por 10 para obtener decenas y unidades
-CONVERT_LOOP:
-        SUB 10            ; Restar 10 de A
-        JR C, END_LOOP    ; Si A es negativo, terminar el bucle
-        INC D             ; Incrementar las decenas en D
-        JR CONVERT_LOOP   ; Repetir el bucle
+        ; --- Manejo del acarreo de unidades ---
+        ld a, 0          ; Cargar 0 en A para manejar el acarreo
+        jr nc, no_carry_units ; Si no hay acarreo, saltar
 
-END_LOOP:
-        ADD A, 10         ; Ajustar A para que contenga el valor de las unidades
-        LD C, A           ; Almacenar las unidades en C
-        LD A, D           ; Cargar las decenas en A
-        RET               ; Retorno de la subrutina
+        inc a            ; Si hay acarreo, incrementamos A
 
-; Subrutina para ajustar BCD en caso de acarreo
-ADJUST_BCD:
-        LD A, L           ; Cargar las unidades en A
-        CALL ADJUST       ; Ajustar si es necesario
-        LD L, A           ; Guardar el valor ajustado en L
+no_carry_units:
+        ; --- Suma de las decenas ---
+        ld a, b          ; Cargar las decenas de B en A
+        add a, d         ; Sumar las decenas de D a A
+        add a, 0         ; Añadir el acarreo de las unidades
+        daa              ; Ajustar A al formato BCD
+        ld h, a          ; Guardar el resultado en H
 
-        LD A, H           ; Cargar las decenas en A
-        CALL ADJUST       ; Ajustar si es necesario
-        LD H, A           ; Guardar el valor ajustado en H
+        ; --- Manejo del acarreo de decenas ---
+        ld a, 0          ; Reiniciar A para manejar el acarreo
+        jr nc, no_carry_tens ; Si no hay acarreo, saltar
 
-        LD A, A           ; Cargar las centenas en A
-        CALL ADJUST       ; Ajustar si es necesario
+        inc a            ; Si hay acarreo, incrementamos A
 
-        RET               ; Retorno de la subrutina
+no_carry_tens:
+        ; --- El valor en A es la centena ---
+        ; El resultado final está en A (centenas), H (decenas), y L (unidades)
+        nop              ; No Operation (espera aquí)
+        halt             ; Detener el procesador
 
-ADJUST:
-        CPI 0x0A          ; Comparar A con 0x0A (10 en decimal)
-        RET C             ; Retornar si A < 10
-        ADD A, 0x06       ; Ajustar A si es necesario
-        RET               ; Retorno de la subrutina
+        end              ; Fin del programa
+
