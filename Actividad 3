@@ -1,0 +1,123 @@
+        ORG 0000        ; Dirección de origen del código
+
+; ---- Variables ----
+clave_correcta:   DB '1234'  ; Clave correcta (puedes modificarla)
+clave_ingresada:  DS 4       ; Espacio para almacenar la clave ingresada
+intentos_fallidos: DB 0      ; Contador de intentos fallidos
+
+; ---- Mensajes ----
+mensaje_clave:    DB 'Introduzca una clave de 4 digitos:', 0
+mensaje_error:    DB 'Error: Solo se permiten numeros.', 0
+mensaje_incorrecta: DB 'Clave incorrecta.', 0
+mensaje_bloqueado: DB 'Acceso bloqueado.', 0
+mensaje_correcta: DB 'Acceso concedido.', 0
+
+; ---- Inicio del programa ----
+INICIO:
+        LD A, 0             ; Reiniciar contador de intentos fallidos
+        LD (intentos_fallidos), A
+
+PEDIR_CLAVE:
+        CALL MOSTRAR_MENSAJE, mensaje_clave
+        CALL LEER_CLAVE
+
+        ; Verificar si la clave es correcta
+        LD HL, clave_correcta
+        LD DE, clave_ingresada
+        CALL COMPARAR_CLAVES
+
+        JP Z, CLAVE_CORRECTA ; Si las claves coinciden
+
+        ; Si es incorrecta, incrementar intentos
+        CALL MOSTRAR_MENSAJE, mensaje_incorrecta
+        INC (intentos_fallidos)
+        LD A, (intentos_fallidos)
+        CP 3                 ; ¿Se han realizado 3 intentos?
+        JP NZ, PEDIR_CLAVE    ; Si no, volver a pedir la clave
+
+        ; Si se han realizado 3 intentos fallidos
+        CALL MOSTRAR_MENSAJE, mensaje_bloqueado
+        JP INICIO            ; Reiniciar el programa, pero bloqueado
+
+CLAVE_CORRECTA:
+        CALL MOSTRAR_MENSAJE, mensaje_correcta
+        JP INICIO            ; Reiniciar el programa
+
+; ---- Subrutina para leer la clave ----
+LEER_CLAVE:
+        LD HL, clave_ingresada
+        LD B, 4              ; Esperar 4 dígitos
+LEER_DIGITO:
+        CALL LEER_CARACTER   ; Leer un carácter
+        CALL ES_NUMERO       ; Verificar si es un número
+        JP NZ, ERROR         ; Si no es un número, mostrar error
+
+        LD (HL), A           ; Guardar el dígito
+        INC HL
+        CALL MOSTRAR_ASTERISCO ; Mostrar "*"
+        DJNZ LEER_DIGITO     ; Repetir hasta que se lean 4 dígitos
+        RET
+
+ERROR:
+        CALL MOSTRAR_MENSAJE, mensaje_error
+        JP PEDIR_CLAVE
+
+; ---- Subrutina para verificar si el carácter es un número ----
+ES_NUMERO:
+        CP '0'               ; Comparar con '0'
+        JP C, NO_ES_NUMERO
+        CP '9' + 1           ; Comparar con '9' + 1
+        JP NC, NO_ES_NUMERO
+        XOR A                ; Si es un número, retornar Z=1
+        RET
+
+NO_ES_NUMERO:
+        LD A, 1              ; Retornar Z=0 si no es un número
+        RET
+
+; ---- Subrutina para mostrar un mensaje ----
+MOSTRAR_MENSAJE:
+        LD HL, (SP+2)        ; Obtener dirección del mensaje
+MOSTRAR_CARACTERES:
+        LD A, (HL)
+        OR A
+        RET Z                ; Si es fin de cadena, regresar
+        CALL MOSTRAR_CARACTER ; Llamar subrutina para mostrar caracter
+        INC HL
+        JP MOSTRAR_CARACTERES
+
+; ---- Subrutina para mostrar un asterisco ----
+MOSTRAR_ASTERISCO:
+        LD A, '*'            ; Cargar asterisco en A
+        CALL MOSTRAR_CARACTER
+        RET
+
+; ---- Subrutina para comparar las claves ----
+COMPARAR_CLAVES:
+        LD B, 4              ; Comparar 4 dígitos
+COMPARAR_DIGITO:
+        LD A, (HL)
+        CP (DE)
+        JP NZ, CLAVES_DIFERENTES ; Si no coinciden, regresar con Z=0
+        INC HL
+        INC DE
+        DJNZ COMPARAR_DIGITO
+        XOR A                ; Si coinciden, regresar con Z=1
+        RET
+
+CLAVES_DIFERENTES:
+        LD A, 1              ; Si no coinciden, regresar con Z=0
+        RET
+
+; ---- Subrutinas de entrada/salida específicas de hardware ----
+; Aquí debes implementar las rutinas específicas para tu hardware
+
+MOSTRAR_CARACTER:
+        ; Implementar la rutina para mostrar un carácter en la pantalla
+        RET
+
+LEER_CARACTER:
+        ; Implementar la rutina para leer un carácter del teclado
+        RET
+
+        END
